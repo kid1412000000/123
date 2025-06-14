@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<link rel="manifest" href="manifest.json">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图书库存与运费管理系统 (本地存储版)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .nav-button.active {
+            border-bottom-color: #3b82f6;
+            color: #2563eb;
+            font-weight: 600;
+        }
+        /* 自定义滚动条 */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        .modal {
+            transition: opacity 0.25s ease;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-7xl">
+        <header class="mb-6 text-center">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800">图书库存与运费管理系统</h1>
+            <p class="text-gray-500 mt-2">轻松追踪图书包件的入库、出库及运费情况 (本地存储)</p>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="mb-8 border-b border-gray-200">
+            <div class="flex space-x-8">
+                <button id="nav-main" class="nav-button py-4 px-1 border-b-2 border-transparent font-medium text-lg text-gray-500 hover:text-blue-600 hover:border-blue-600 transition-colors">主页</button>
+                <button id="nav-admin" class="nav-button py-4 px-1 border-b-2 border-transparent font-medium text-lg text-gray-500 hover:text-blue-600 hover:border-blue-600 transition-colors">后台管理</button>
+                <button id="nav-finance" class="nav-button py-4 px-1 border-b-2 border-transparent font-medium text-lg text-gray-500 hover:text-blue-600 hover:border-blue-600 transition-colors">财务报销</button>
+            </div>
+        </nav>
+
+        <!-- Main Page Content -->
+        <div id="page-main">
+            <!-- 操作面板 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h2 class="text-xl font-semibold mb-4 border-l-4 border-blue-500 pl-3">添加入库记录</h2>
+                    <form id="inbound-form">
+                        <div class="mb-4"><label for="in-date" class="block text-sm font-medium text-gray-700 mb-1">日期</label><input type="date" id="in-date" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"></div>
+                        <div class="mb-4"><label for="in-quantity" class="block text-sm font-medium text-gray-700 mb-1">入库件数</label><input type="number" id="in-quantity" placeholder="例如: 10" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"></div>
+                        <div class="mb-4"><label for="in-cost" class="block text-sm font-medium text-gray-700 mb-1">实付运费 (元)</label><input type="number" step="0.01" id="in-cost" placeholder="例如: 50.5" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"></div>
+                        <button type="submit" class="w-full bg-blue-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-600 transition">确认入库</button>
+                    </form>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h2 class="text-xl font-semibold mb-4 border-l-4 border-green-500 pl-3">添加出库记录</h2>
+                    <form id="outbound-form">
+                        <div class="mb-4"><label for="out-date" class="block text-sm font-medium text-gray-700 mb-1">日期</label><input type="date" id="out-date" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"></div>
+                        <div class="mb-4"><label for="out-quantity" class="block text-sm font-medium text-gray-700 mb-1">出库件数</label><input type="number" id="out-quantity" placeholder="例如: 5" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"></div>
+                        <div class="mb-4"><label for="out-destination" class="block text-sm font-medium text-gray-700 mb-1">送货单位</label><select id="out-destination" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 bg-white"></select></div>
+                        <div class="mb-4"><label for="out-cost" class="block text-sm font-medium text-gray-700 mb-1">实付运费 (元)</label><input type="number" step="0.01" id="out-cost" placeholder="例如: 30" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"></div>
+                        <button type="submit" class="w-full bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition">确认出库</button>
+                    </form>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-md mb-8">
+                <h2 class="text-xl font-semibold mb-4">数据统计分析</h2>
+                <div class="flex flex-wrap gap-4 items-center mb-4"><label for="start-date" class="text-sm font-medium text-gray-700">开始日期:</label><input type="date" id="start-date" class="mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"><label for="end-date" class="text-sm font-medium text-gray-700">结束日期:</label><input type="date" id="end-date" class="mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"><button id="filter-button" class="bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-600">查询</button><button id="reset-filter-button" class="bg-gray-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-600">重置</button></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 text-center"><div class="bg-blue-50 p-4 rounded-lg"><h3 class="text-sm font-medium text-blue-800">总入库件数</h3><p id="total-in-quantity" class="text-2xl font-bold text-blue-600">0</p></div><div class="bg-blue-50 p-4 rounded-lg"><h3 class="text-sm font-medium text-blue-800">总入库运费</h3><p id="total-in-cost" class="text-2xl font-bold text-blue-600">¥0.00</p></div><div class="bg-green-50 p-4 rounded-lg"><h3 class="text-sm font-medium text-green-800">总出库件数</h3><p id="total-out-quantity" class="text-2xl font-bold text-green-600">0</p></div><div class="bg-green-50 p-4 rounded-lg"><h3 class="text-sm font-medium text-green-800">总出库运费</h3><p id="total-out-cost" class="text-2xl font-bold text-green-600">¥0.00</p></div><div class="bg-red-50 p-4 rounded-lg"><h3 class="text-sm font-medium text-red-800">未报销运费</h3><p id="total-unreimbursed-cost" class="text-2xl font-bold text-red-600">¥0.00</p></div><div class="bg-yellow-50 p-4 rounded-lg"><h3 class="text-sm font-medium text-yellow-800">当前库存件数</h3><p id="current-stock" class="text-2xl font-bold text-yellow-600">0</p></div><div class="bg-purple-50 p-4 rounded-lg"><h3 class="text-sm font-medium text-purple-800">平均入库成本/件</h3><p id="avg-in-cost" class="text-2xl font-bold text-purple-600">¥0.00</p></div><div class="bg-purple-50 p-4 rounded-lg"><h3 class="text-sm font-medium text-purple-800">平均出库成本/件</h3><p id="avg-out-cost" class="text-2xl font-bold text-purple-600">¥0.00</p></div></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6"><div><h3 class="text-lg font-semibold mb-2">各单位送货量统计</h3><div id="destination-stats" class="space-y-2 max-h-60 overflow-y-auto pr-2"><p class="text-gray-500">暂无出库数据。</p></div></div><div><h3 class="text-lg font-semibold mb-2">入库/出库运费趋势</h3><canvas id="cost-chart"></canvas></div></div>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-md"><h2 class="text-xl font-semibold mb-4">所有交易记录</h2><div class="max-h-96 overflow-y-auto"><table class="w-full text-sm text-left text-gray-500"><thead class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0"><tr><th scope="col" class="px-6 py-3">类型</th><th scope="col" class="px-6 py-3">日期</th><th scope="col" class="px-6 py-3">件数</th><th scope="col" class="px-6 py-3">运费</th><th scope="col" class="px-6 py-3">单位/目的地</th><th scope="col" class="px-6 py-3">报销状态</th><th scope="col" class="px-6 py-3">操作</th></tr></thead><tbody id="transaction-list"></tbody></table></div><div id="no-data-message" class="text-center py-10 text-gray-500"><p>暂无任何记录。</p></div></div>
+        </div>
+
+        <!-- Admin Page Content -->
+        <div id="page-admin" class="hidden">
+            <div class="bg-white p-6 rounded-xl shadow-md"><h2 class="text-xl font-semibold mb-4 text-gray-700">后台管理</h2><div class="grid grid-cols-1 gap-6"><div><h3 class="text-lg font-medium mb-3">单位管理 (含收件统计)</h3><div class="flex flex-wrap gap-4 items-center mb-4 p-4 bg-gray-50 rounded-lg"><div><label for="unit-start-date" class="text-sm font-medium text-gray-700">开始日期:</label><input type="date" id="unit-start-date" class="mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"></div><div><label for="unit-end-date" class="text-sm font-medium text-gray-700">结束日期:</label><input type="date" id="unit-end-date" class="mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"></div><button id="unit-filter-btn" class="bg-purple-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-purple-600 self-end">查询</button><button id="unit-reset-btn" class="bg-gray-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-600 self-end">重置</button></div><div class="space-y-2 max-h-60 overflow-y-auto pr-2" id="unit-list"></div><form id="add-unit-form" class="mt-4 flex gap-2"><input type="text" id="new-unit-name" placeholder="输入新单位名称" required class="flex-grow px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"><button type="submit" class="bg-purple-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-purple-600 transition">添加单位</button></form></div></div></div>
+        </div>
+
+        <!-- Finance Page Content -->
+        <div id="page-finance" class="hidden">
+            <div class="bg-white p-6 rounded-xl shadow-md"><h2 class="text-xl font-semibold mb-4 text-gray-700">财务报销管理</h2>
+                <div class="flex flex-wrap gap-4 items-center mb-4 p-4 bg-gray-50 rounded-lg">
+                    <div><label for="finance-start-date" class="text-sm font-medium text-gray-700">开始日期:</label><input type="date" id="finance-start-date" class="mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 text-sm"></div>
+                    <div><label for="finance-end-date" class="text-sm font-medium text-gray-700">结束日期:</label><input type="date" id="finance-end-date" class="mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 text-sm"></div>
+                    <button id="finance-filter-btn" class="bg-teal-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-teal-600 self-end">查询</button>
+                    <button id="finance-reset-btn" class="bg-gray-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-600 self-end">重置</button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 text-center">
+                    <div class="bg-blue-50 p-4 rounded-lg"><h3 class="text-sm font-medium text-blue-800">期间入库运费</h3><p id="finance-in-cost" class="text-2xl font-bold text-blue-600">¥0.00</p></div>
+                    <div class="bg-green-50 p-4 rounded-lg"><h3 class="text-sm font-medium text-green-800">期间出库运费</h3><p id="finance-out-cost" class="text-2xl font-bold text-green-600">¥0.00</p></div>
+                    <div class="bg-red-50 p-4 rounded-lg"><h3 class="text-sm font-medium text-red-800">期间未报销运费</h3><p id="finance-unreimbursed-cost" class="text-2xl font-bold text-red-600">¥0.00</p></div>
+                </div>
+                <div class="max-h-96 overflow-y-auto"><table class="w-full text-sm text-left text-gray-500"><thead class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0"><tr><th class="px-6 py-3 w-1/12">报销</th><th class="px-6 py-3">日期</th><th class="px-6 py-3">类型</th><th class="px-6 py-3">运费</th><th class="px-6 py-3">单位/目的地</th></tr></thead><tbody id="finance-list"></tbody></table></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 消息提示框 -->
+    <div id="toast" class="fixed top-5 right-5 bg-green-500 text-white py-2 px-4 rounded-lg shadow-lg transform translate-x-full transition-transform duration-300"></div>
+
+    <!-- Modals -->
+    <div id="edit-modal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center p-4"><div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6"><h3 class="text-xl font-semibold mb-4">编辑记录</h3><form id="edit-form"><div class="grid grid-cols-1 sm:grid-cols-2 gap-4"><div><label for="edit-type" class="block text-sm font-medium text-gray-700">类型</label><select id="edit-type" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg bg-white"><option value="inbound">入库</option><option value="outbound">出库</option></select></div><div><label for="edit-date" class="block text-sm font-medium text-gray-700">日期</label><input type="date" id="edit-date" required class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg"></div><div><label for="edit-quantity" class="block text-sm font-medium text-gray-700">件数</label><input type="number" id="edit-quantity" required class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg"></div><div><label for="edit-cost" class="block text-sm font-medium text-gray-700">运费 (元)</label><input type="number" step="0.01" id="edit-cost" required class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg"></div><div class="sm:col-span-2"><label for="edit-destination" class="block text-sm font-medium text-gray-700">单位/目的地</label><input type="text" id="edit-destination" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg"></div></div><div class="mt-4 flex items-center"><input id="edit-reimbursed" type="checkbox" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"><label for="edit-reimbursed" class="ml-2 block text-sm text-gray-900">运费已报销</label></div><div class="mt-6 flex justify-end gap-3"><button type="button" id="modal-cancel-edit" class="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-300">取消</button><button type="submit" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700">保存更改</button></div></form></div></div>
+    <div id="delete-modal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center p-4"><div class="relative mx-auto p-5 border w-full max-w-sm shadow-lg rounded-md bg-white"><div class="mt-3 text-center"><div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100"><svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg></div><h3 class="text-lg leading-6 font-medium text-gray-900 mt-2">删除记录</h3><div class="mt-2 px-7 py-3"><p class="text-sm text-gray-500">确定删除?</p></div><div class="items-center px-4 py-3 flex justify-center gap-3"><button id="modal-confirm-delete" class="px-4 py-2 bg-red-500 text-white text-base font-medium rounded-md w-auto shadow-sm hover:bg-red-700">确认</button><button id="modal-cancel-delete" class="px-4 py-2 bg-gray-200 text-gray-800 text-base font-medium rounded-md w-auto shadow-sm hover:bg-gray-300">取消</button></div></div></div></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const TRANSACTIONS_KEY = 'bookInventoryTransactions_v2';
+            const UNITS_KEY = 'bookInventoryUnits_v2';
+            let allTransactions = [], allUnits = [], costChart = null, recordIdToDelete = null, recordIdToEdit = null, transactionsForUnitDisplay = [], transactionsForFinanceDisplay = [];
+            const dom = {
+                pageMain: document.getElementById('page-main'), pageAdmin: document.getElementById('page-admin'), pageFinance: document.getElementById('page-finance'),
+                navMainBtn: document.getElementById('nav-main'), navAdminBtn: document.getElementById('nav-admin'), navFinanceBtn: document.getElementById('nav-finance'),
+                inboundForm: document.getElementById('inbound-form'), outboundForm: document.getElementById('outbound-form'), transactionList: document.getElementById('transaction-list'),
+                noDataMessage: document.getElementById('no-data-message'), toast: document.getElementById('toast'),
+                startDateInput: document.getElementById('start-date'), endDateInput: document.getElementById('end-date'), filterButton: document.getElementById('filter-button'), resetFilterButton: document.getElementById('reset-filter-button'),
+                addUnitForm: document.getElementById('add-unit-form'), unitListContainer: document.getElementById('unit-list'), outDestinationSelect: document.getElementById('out-destination'),
+                unitStartDateInput: document.getElementById('unit-start-date'), unitEndDateInput: document.getElementById('unit-end-date'), unitFilterBtn: document.getElementById('unit-filter-btn'), unitResetBtn: document.getElementById('unit-reset-btn'),
+                financeStartDateInput: document.getElementById('finance-start-date'), financeEndDateInput: document.getElementById('finance-end-date'), financeFilterBtn: document.getElementById('finance-filter-btn'), financeResetBtn: document.getElementById('finance-reset-btn'),
+                financeList: document.getElementById('finance-list'),
+                deleteModal: document.getElementById('delete-modal'), editModal: document.getElementById('edit-modal'),
+                confirmDeleteBtn: document.getElementById('modal-confirm-delete'), cancelDeleteBtn: document.getElementById('modal-cancel-delete'),
+                cancelEditBtn: document.getElementById('modal-cancel-edit'), editForm: document.getElementById('edit-form')
+            };
+
+            const showPage = (pageIdToShow) => {
+                dom.pageMain.classList.add('hidden');
+                dom.pageAdmin.classList.add('hidden');
+                dom.pageFinance.classList.add('hidden');
+                dom.navMainBtn.classList.remove('active');
+                dom.navAdminBtn.classList.remove('active');
+                dom.navFinanceBtn.classList.remove('active');
+                
+                if (pageIdToShow === 'page-main') {
+                    dom.pageMain.classList.remove('hidden');
+                    dom.navMainBtn.classList.add('active');
+                } else if (pageIdToShow === 'page-admin') {
+                    dom.pageAdmin.classList.remove('hidden');
+                    dom.navAdminBtn.classList.add('active');
+                } else if (pageIdToShow === 'page-finance') {
+                    dom.pageFinance.classList.remove('hidden');
+                    dom.navFinanceBtn.classList.add('active');
+                }
+            };
+            dom.navMainBtn.addEventListener('click', () => showPage('page-main'));
+            dom.navAdminBtn.addEventListener('click', () => showPage('page-admin'));
+            dom.navFinanceBtn.addEventListener('click', () => showPage('page-finance'));
+
+            const getFromStorage = k => JSON.parse(localStorage.getItem(k)) || [];
+            const saveToStorage = (k, d) => localStorage.setItem(k, JSON.stringify(d));
+            const showToast = (m, s = true) => { dom.toast.textContent = m; dom.toast.className = `fixed top-5 right-5 text-white py-2 px-4 rounded-lg shadow-lg transform transition-transform duration-300 ${s ? 'bg-green-500' : 'bg-red-500'} translate-x-0`; setTimeout(() => { dom.toast.classList.add('translate-x-full'); }, 3000); };
+            const formatDate = d => new Date(d).toISOString().split('T')[0];
+
+            const renderUnits = (txs) => {
+                const counts = txs.reduce((acc, tx) => { if (tx.type === 'outbound') acc[tx.destination] = (acc[tx.destination] || 0) + tx.quantity; return acc; }, {});
+                dom.unitListContainer.innerHTML = allUnits.length ? allUnits.sort().map(unit => `<div class="flex justify-between items-center text-sm p-2 bg-white rounded-md shadow-sm">
+                    <span class="font-medium text-gray-800">${unit}</span>
+                    <div class="flex items-center gap-4"><span class="text-sm font-bold text-purple-700 bg-purple-100 px-3 py-1 rounded-full">${counts[unit] || 0} 件</span><button data-unit="${unit}" class="delete-unit-btn text-red-500 hover:text-red-700 font-semibold">删除</button></div>
+                    </div>`).join('') : '<p class="text-gray-500 text-sm p-4 text-center">暂无单位。</p>';
+                dom.outDestinationSelect.innerHTML = '<option value="" disabled selected>选择单位</option>' + allUnits.map(u => `<option value="${u}">${u}</option>`).join('');
+            };
+            dom.addUnitForm.addEventListener('submit', e => { e.preventDefault(); const name = document.getElementById('new-unit-name').value.trim(); if (name && !allUnits.includes(name)) { allUnits.push(name); saveToStorage(UNITS_KEY, allUnits); renderUnits(transactionsForUnitDisplay); showToast(`单位 "${name}" 添加成功`); e.target.reset(); } else showToast('单位名称无效或已存在', false); });
+            dom.unitListContainer.addEventListener('click', e => { if (e.target.classList.contains('delete-unit-btn')) { const unit = e.target.dataset.unit; allUnits = allUnits.filter(u => u !== unit); saveToStorage(UNITS_KEY, allUnits); renderUnits(transactionsForUnitDisplay); showToast(`单位 "${unit}" 删除成功`); } });
+
+            const loadAndRenderAll = () => {
+                allUnits = getFromStorage(UNITS_KEY);
+                allTransactions = getFromStorage(TRANSACTIONS_KEY).map(tx => ({...tx, timestamp: new Date(tx.timestamp)}));
+                transactionsForUnitDisplay = [...allTransactions];
+                transactionsForFinanceDisplay = [...allTransactions];
+                renderUnits(transactionsForUnitDisplay);
+                renderData(allTransactions);
+                renderFinancePage(transactionsForFinanceDisplay);
+                dom.noDataMessage.classList.toggle('hidden', allTransactions.length > 0);
+            };
+
+            const renderData = (txs) => { renderTransactionList(txs); calculateAndDisplayStats(txs); renderChart(txs); };
+            const renderTransactionList = (txs) => { dom.transactionList.innerHTML = (txs.length === 0 && allTransactions.length > 0) ? `<tr><td colspan="7" class="text-center py-5 text-gray-500">无记录。</td></tr>` : txs.sort((a,b) => b.timestamp - a.timestamp).map(tx => `<tr class="bg-white border-b hover:bg-gray-50"><td class="px-6 py-4 ${tx.type === 'inbound' ? 'text-blue-600' : 'text-green-600'} font-semibold">${tx.type === 'inbound' ? '入库' : '出库'}</td><td class="px-6 py-4">${tx.timestamp.toLocaleDateString('zh-CN')}</td><td class="px-6 py-4">${tx.quantity}</td><td class="px-6 py-4">¥${tx.cost.toFixed(2)}</td><td class="px-6 py-4">${tx.destination}</td><td class="px-6 py-4"><span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${tx.reimbursed ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${tx.reimbursed ? '已报销' : '未报销'}</span></td><td class="px-6 py-4 flex items-center gap-3"><button data-id="${tx.id}" class="edit-btn text-sm font-medium text-indigo-600 hover:text-indigo-900">编辑</button><button data-id="${tx.id}" class="delete-btn text-sm font-medium text-red-600 hover:text-red-900">删除</button></td></tr>`).join(''); };
+
+            dom.inboundForm.addEventListener('submit', e => {
+                e.preventDefault();
+                const data = {
+                    date: document.getElementById('in-date').value,
+                    quantity: parseInt(document.getElementById('in-quantity').value),
+                    cost: parseFloat(document.getElementById('in-cost').value),
+                    destination: '仓库'
+                };
+                if (!data.date || isNaN(data.quantity) || isNaN(data.cost) || data.quantity <= 0 || data.cost < 0) {
+                    showToast('请填写所有有效的必填项', false); return;
+                }
+                allTransactions.push({ id: crypto.randomUUID(), type: 'inbound', ...data, reimbursed: false, timestamp: new Date(data.date) });
+                saveToStorage(TRANSACTIONS_KEY, allTransactions);
+                loadAndRenderAll();
+                showToast('入库成功！');
+                e.target.reset();
+                document.getElementById('in-date').value = formatDate(new Date());
+            });
+
+            dom.outboundForm.addEventListener('submit', e => {
+                e.preventDefault();
+                const data = {
+                    date: document.getElementById('out-date').value,
+                    quantity: parseInt(document.getElementById('out-quantity').value),
+                    cost: parseFloat(document.getElementById('out-cost').value),
+                    destination: dom.outDestinationSelect.value
+                };
+                if (!data.date || isNaN(data.quantity) || isNaN(data.cost) || data.quantity <= 0 || data.cost < 0 || !data.destination) {
+                    showToast('请填写所有有效的必填项', false); return;
+                }
+                allTransactions.push({ id: crypto.randomUUID(), type: 'outbound', ...data, reimbursed: false, timestamp: new Date(data.date) });
+                saveToStorage(TRANSACTIONS_KEY, allTransactions);
+                loadAndRenderAll();
+                showToast('出库成功！');
+                e.target.reset();
+                document.getElementById('out-date').value = formatDate(new Date());
+            });
+
+            dom.transactionList.addEventListener('click', e => {
+                const id = e.target.dataset.id;
+                if (!id) return;
+                const tx = allTransactions.find(t => t.id === id);
+                if (e.target.classList.contains('delete-btn')) { recordIdToDelete = id; dom.deleteModal.classList.remove('hidden', 'flex'); dom.deleteModal.classList.add('flex'); }
+                else if (e.target.classList.contains('edit-btn')) { recordIdToEdit = id; Object.entries({type: tx.type, date: formatDate(tx.timestamp), quantity: tx.quantity, cost: tx.cost, destination: tx.destination, reimbursed: tx.reimbursed}).forEach(([k, v]) => { const el = document.getElementById(`edit-${k}`); if(el.type === 'checkbox') el.checked = v; else el.value = v; }); document.getElementById('edit-destination').disabled = tx.type === 'inbound'; dom.editModal.classList.remove('hidden', 'flex'); dom.editModal.classList.add('flex'); }
+            });
+
+            dom.editForm.addEventListener('submit', e => {
+                e.preventDefault();
+                const idx = allTransactions.findIndex(t => t.id === recordIdToEdit);
+                if (idx > -1) { allTransactions[idx] = { ...allTransactions[idx], type: document.getElementById('edit-type').value, timestamp: new Date(document.getElementById('edit-date').value), quantity: parseInt(document.getElementById('edit-quantity').value), cost: parseFloat(document.getElementById('edit-cost').value), destination: document.getElementById('edit-destination').value, reimbursed: document.getElementById('edit-reimbursed').checked }; saveToStorage(TRANSACTIONS_KEY, allTransactions); loadAndRenderAll(); showToast('记录更新成功'); closeEditModal(); }
+            });
+            document.getElementById('edit-type').addEventListener('change', e => { const destInput = document.getElementById('edit-destination'); if(e.target.value === 'inbound') { destInput.value = '仓库'; destInput.disabled = true; } else destInput.disabled = false; });
+            const closeDeleteModal = () => { dom.deleteModal.classList.add('hidden'); dom.deleteModal.classList.remove('flex'); recordIdToDelete = null; };
+            const closeEditModal = () => { dom.editModal.classList.add('hidden'); dom.editModal.classList.remove('flex'); recordIdToEdit = null; };
+            dom.confirmDeleteBtn.addEventListener('click', () => { allTransactions = allTransactions.filter(tx => tx.id !== recordIdToDelete); saveToStorage(TRANSACTIONS_KEY, allTransactions); loadAndRenderAll(); showToast('记录已删除'); closeDeleteModal(); });
+            dom.cancelDeleteBtn.addEventListener('click', closeDeleteModal);
+            dom.cancelEditBtn.addEventListener('click', closeEditModal);
+
+            const calculateAndDisplayStats = (txs) => {
+                const stats = txs.reduce((acc, tx) => { acc[tx.type].quantity += tx.quantity; acc[tx.type].cost += tx.cost; if (!tx.reimbursed) acc.unreimbursedCost += tx.cost; if (tx.type === 'outbound') acc.destStats[tx.destination] = (acc.destStats[tx.destination] || 0) + tx.quantity; return acc; }, { inbound: {quantity: 0, cost: 0}, outbound: {quantity: 0, cost: 0}, unreimbursedCost: 0, destStats: {} });
+                const totalStock = allTransactions.reduce((acc, tx) => acc + (tx.type === 'inbound' ? tx.quantity : -tx.quantity), 0);
+                document.getElementById('total-in-quantity').textContent = stats.inbound.quantity;
+                document.getElementById('total-in-cost').textContent = `¥${stats.inbound.cost.toFixed(2)}`;
+                document.getElementById('total-out-quantity').textContent = stats.outbound.quantity;
+                document.getElementById('total-out-cost').textContent = `¥${stats.outbound.cost.toFixed(2)}`;
+                document.getElementById('total-unreimbursed-cost').textContent = `¥${stats.unreimbursedCost.toFixed(2)}`;
+                document.getElementById('current-stock').textContent = totalStock;
+                document.getElementById('avg-in-cost').textContent = `¥${(stats.inbound.quantity ? stats.inbound.cost / stats.inbound.quantity : 0).toFixed(2)}`;
+                document.getElementById('avg-out-cost').textContent = `¥${(stats.outbound.quantity ? stats.outbound.cost / stats.outbound.quantity : 0).toFixed(2)}`;
+                const destStatsContainer = document.getElementById('destination-stats');
+                destStatsContainer.innerHTML = Object.keys(stats.destStats).length ? Object.entries(stats.destStats).sort(([,a],[,b]) => b-a).map(([name, q]) => `<div class="flex justify-between items-center bg-gray-50 p-2 rounded"><span class="font-medium text-gray-700">${name}</span><span class="font-bold text-gray-900">${q} 件</span></div>`).join('') : '<p class="text-gray-500">无出库数据。</p>';
+            };
+            const renderChart = (data) => {
+                const ctx = document.getElementById('cost-chart').getContext('2d');
+                const sorted = data.slice().sort((a,b) => a.timestamp - b.timestamp);
+                if(costChart) costChart.destroy();
+                costChart = new Chart(ctx, { type: 'line', data: { labels: sorted.map(tx => tx.timestamp.toLocaleDateString('zh-CN')), datasets: [{label: '入库运费', data: sorted.map(tx => tx.type === 'inbound' ? tx.cost : 0), borderColor: 'rgb(59, 130, 246)', tension: 0.1}, {label: '出库运费', data: sorted.map(tx => tx.type === 'outbound' ? tx.cost : 0), borderColor: 'rgb(34, 197, 94)', tension: 0.1}]}, options: { responsive: true }});
+            };
+
+            const applyFilter = (startEl, endEl, dataSrc, renderer) => {
+                const start = startEl.value ? new Date(startEl.value) : null;
+                const end = endEl.value ? new Date(endEl.value) : null;
+                if(start) start.setHours(0,0,0,0);
+                if(end) end.setHours(23,59,59,999);
+                if (start && end && start > end) { showToast('开始日期不能晚于结束日期', false); return; }
+                const filtered = dataSrc.filter(tx => (!start || tx.timestamp >= start) && (!end || tx.timestamp <= end));
+                renderer(filtered);
+            };
+            dom.filterButton.addEventListener('click', () => applyFilter(dom.startDateInput, dom.endDateInput, allTransactions, renderData));
+            dom.resetFilterButton.addEventListener('click', () => { dom.startDateInput.value = ''; dom.endDateInput.value = ''; renderData(allTransactions); });
+            dom.unitFilterBtn.addEventListener('click', () => applyFilter(dom.unitStartDateInput, dom.unitEndDateInput, allTransactions, filtered => { transactionsForUnitDisplay = filtered; renderUnits(filtered); }));
+            dom.unitResetBtn.addEventListener('click', () => { dom.unitStartDateInput.value = ''; dom.unitEndDateInput.value = ''; transactionsForUnitDisplay = [...allTransactions]; renderUnits(transactionsForUnitDisplay); });
+            dom.financeFilterBtn.addEventListener('click', () => applyFilter(dom.financeStartDateInput, dom.financeEndDateInput, allTransactions, renderFinancePage));
+            dom.financeResetBtn.addEventListener('click', () => { dom.financeStartDateInput.value = ''; dom.financeEndDateInput.value = ''; renderFinancePage(allTransactions); });
+
+            const renderFinancePage = (txs) => {
+                transactionsForFinanceDisplay = txs;
+                const stats = txs.reduce((acc, tx) => { acc[tx.type].cost += tx.cost; if (!tx.reimbursed) acc.unreimbursed += tx.cost; return acc; }, {inbound: {cost: 0}, outbound: {cost: 0}, unreimbursed: 0});
+                document.getElementById('finance-in-cost').textContent = `¥${stats.inbound.cost.toFixed(2)}`;
+                document.getElementById('finance-out-cost').textContent = `¥${stats.outbound.cost.toFixed(2)}`;
+                document.getElementById('finance-unreimbursed-cost').textContent = `¥${stats.unreimbursed.toFixed(2)}`;
+                dom.financeList.innerHTML = txs.sort((a,b) => a.timestamp - b.timestamp).map(tx => `
+                    <tr class="bg-white border-b hover:bg-gray-50"><td class="px-6 py-4"><input type="checkbox" data-id="${tx.id}" class="reimburse-checkbox h-4 w-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500" ${tx.reimbursed ? 'checked' : ''}></td>
+                    <td class="px-6 py-4">${tx.timestamp.toLocaleDateString('zh-CN')}</td><td class="px-6 py-4">${tx.type === 'inbound' ? '入库' : '出库'}</td>
+                    <td class="px-6 py-4">¥${tx.cost.toFixed(2)}</td><td class="px-6 py-4">${tx.destination}</td></tr>`).join('');
+            };
+            dom.financeList.addEventListener('change', e => {
+                if(e.target.classList.contains('reimburse-checkbox')) {
+                    const id = e.target.dataset.id;
+                    const tx = allTransactions.find(t => t.id === id);
+                    if(tx) { 
+                        tx.reimbursed = e.target.checked; 
+                        saveToStorage(TRANSACTIONS_KEY, allTransactions); 
+                        showToast('报销状态已更新'); 
+                        renderFinancePage(transactionsForFinanceDisplay); 
+                        calculateAndDisplayStats(allTransactions); 
+                    }
+                }
+            });
+
+            document.getElementById('in-date').value = formatDate(new Date());
+            document.getElementById('out-date').value = formatDate(new Date());
+            loadAndRenderAll();
+            showPage('page-main');
+        });
+    </script>
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js').then(registration => {
+                console.log('ServiceWorker registration successful with scope: ', registration.scope);
+            }).catch(err => {
+                console.log('ServiceWorker registration failed: ', err);
+            });
+        });
+    }
+</script>
+</body>
+</html>
